@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+captures/
+*.m4a
+*.mp4
+*.pkl
+frames.pkl
+track.m4a
+.DS_Store
