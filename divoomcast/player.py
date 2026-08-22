@@ -131,10 +131,10 @@ class Player:
     """Drives a FrameSource onto a DivoomLink. Runs on the link's own thread."""
 
     def __init__(self, link: DivoomLink, size: int, fps: float, *,
-                 target_load: float = 0.90, guard: float = 0.25, level: int = 9):
+                 target_load: float = 0.90, guard: float | None = None, level: int = 9):
         self.link, self.size, self.fps = link, size, fps
         self.base_speed_ms = max(1, round(1000.0 / fps))
-        self.guard, self.level = guard, level
+        self.guard, self.level = guard, level   # guard=None -> adaptive from overhead
         self.timing = Timing()
         self.shared = {"slack": 0.0, "target_load": target_load}
         self.stats = PlayStats()
@@ -160,9 +160,10 @@ class Player:
                     if on_start:
                         on_start()
 
+                est = self.timing.predict(len(batch.payload))
                 if deadline is not None:
-                    est = self.timing.predict(len(batch.payload))
-                    wait = (deadline - est - self.guard) - time.time()
+                    g = self.timing.guard_s() if self.guard is None else self.guard
+                    wait = (deadline - est - g) - time.time()
                     if wait > 0:
                         end = time.time() + wait
                         while time.time() < end and not self._stop.is_set():
@@ -172,6 +173,7 @@ class Player:
 
                 r = self.link.send(batch.packets)
                 self.timing.observe(r.overhead_s, r.nbytes, r.tx_s)
+                self.timing.observe_error(est, r.total_s)
 
                 if deadline is not None and r.t_ack > deadline:
                     self.stats.underruns += 1

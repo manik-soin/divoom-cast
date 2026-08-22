@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <h1><span class="dot" id="dot"></span> divoomcast</h1>
+
+  <div id="offline" class="banner hide">
+    Daemon not reachable. Run <code>divoomcast serve</code>.
+  </div>
+
+  <div id="notyt" class="banner hide">Not a YouTube video tab.</div>
+
+  <div id="main" class="hide">
+    <div class="vid" id="vidtitle"></div>
+    <div class="row">
+      <div><label>Size</label>
+        <select id="size">
+          <option value="128" selected>128</option><option value="96">96</option>
+          <option value="64">64</option><option value="32">32</option>
+        </select></div>
+      <div><label>FPS</label>
+        <select id="fps">
+          <option value="10">10</option><option value="15" selected>15</option>
+          <option value="20">20</option>
+        </select></div>
+      <div><label>From</label>
+        <select id="from">
+          <option value="current" selected>Current time</option>
+          <option value="0">Start</option>
+        </select></div>
+    </div>
+    <div class="btns">
+      <button class="go" id="play">Cast</button>
+      <button id="stop" disabled>Stop</button>
+    </div>
+    <div class="stats hide" id="stats">
+      <span id="s-state">idle</span>
+      <span id="s-num"></span>
+    </div>
+    <div class="err hide" id="err"></div>
+  </div>
+
+  <div class="foot">Keep audio on another output for a full-rate picture.</div>
+  <script src="popup.js"></script>
+</body></html>

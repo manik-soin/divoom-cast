@@ -20,3 +20,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["divoomcast*"]
+
+[tool.setuptools.package-data]
+divoomcast = ["static/*"]

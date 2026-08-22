@@ -79,7 +79,7 @@ class FrameSource(threading.Thread):
                  start: float = 0.0, maxsize: int = 240):
         super().__init__(daemon=True)
         self.url, self.size, self.fps = url, size, fps
-        self.seconds, self.start = seconds, start
+        self.seconds, self.start_at = seconds, start
         self.q: queue.Queue = queue.Queue(maxsize=maxsize)
         self.error: Exception | None = None
         self.frames_out = 0
@@ -95,9 +95,9 @@ class FrameSource(threading.Thread):
             vs = container.streams.video[0]
             vs.thread_type = "AUTO"
             tb = vs.time_base
-            if self.start > 0:
+            if self.start_at > 0:
                 try:
-                    container.seek(int(self.start / tb), stream=vs)
+                    container.seek(int(self.start_at / tb), stream=vs)
                 except Exception:
                     pass
             next_t, base = 0.0, None

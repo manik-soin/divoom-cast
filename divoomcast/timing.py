@@ -30,6 +30,7 @@ class Timing:
     overhead_s: float = 0.45
     tx_rate: float = 150 * 1024.0
     alpha: float = 0.3           # EWMA weight for new observations
+    err_hi: float = 0.25         # high-side estimate of predict() error
 
     def predict(self, nbytes: int) -> float:
         """Expected wall time to deliver a payload of nbytes."""
@@ -40,15 +41,56 @@ class Timing:
         usable = play_s * target_load - self.overhead_s
         return max(0, int(usable * self.tx_rate))
 
-    def min_play_s(self, headroom: float = 3.0) -> float:
-        """Shortest batch worth sending: overhead must be a small fraction."""
-        return self.overhead_s * headroom
+    # Empirically the best silent-link operating point is ~1.6 s of playback per
+    # batch (24 frames at 15fps), measured at 2 underruns in 57 batches.
+    FLOOR_PLAY_S = 1.6
+
+    def min_play_s(self, headroom: float = 2.5) -> float:
+        """Shortest batch worth sending.
+
+        MUST keep a constant floor. Driving batch length purely from measured
+        overhead is unstable: the device's ready-request latency grows with the
+        declared payload size, so longer batch -> larger payload -> higher
+        overhead -> longer batch. That loop was measured running away from
+        1.33 s to 2.05 s per batch and tripling the underrun rate.
+
+        The adaptive term only takes over when overhead is genuinely large
+        (A2DP contention pushes it from ~0.45 s to ~1.1 s), where long batches
+        really are required to amortise the round trip.
+        """
+        return max(self.FLOOR_PLAY_S, self.overhead_s * headroom)
+
+    def guard_s(self, lo: float = 0.30, hi: float = 1.2) -> float:
+        """How early to aim, sized from measured prediction error.
+
+        Truncation is structurally equal to how early a batch lands, so guard
+        should be as large as observed under-prediction demands and no larger.
+
+        The 0.30 s floor is measured, not arbitrary: it is the margin at the best
+        point found on the underrun/truncation frontier (2 underruns in 57
+        batches at 13% truncation). Below it underruns climb sharply without
+        buying back much truncation.
+        """
+        return max(lo, min(hi, 2.0 * self.err_hi))
 
     def observe(self, overhead_s: float, nbytes: int, tx_s: float) -> None:
+        """Unbiased update. Accuracy belongs here; safety margin belongs in guard."""
         a = self.alpha
         self.overhead_s = (1 - a) * self.overhead_s + a * overhead_s
         if tx_s > 0.05 and nbytes > 4096:      # ignore buffer-absorbed sends
             self.tx_rate = (1 - a) * self.tx_rate + a * (nbytes / tx_s)
+
+    def observe_error(self, predicted_s: float, actual_s: float) -> None:
+        """Track how badly predict() UNDER-estimates; guard is sized from this.
+
+        Deliberately one-sided. Over-prediction is harmless to correctness (the
+        batch simply lands early); under-prediction is what causes an underrun.
+        Biasing predict() itself to be pessimistic also works but pays for the
+        margin twice, which measured as 22% of content truncated.
+        """
+        err = max(0.0, actual_s - predicted_s)
+        w = 0.5 if err > self.err_hi else 0.08     # adopt misses fast, forget slowly
+        self.err_hi = (1 - w) * self.err_hi + w * err
 
 
 @dataclass

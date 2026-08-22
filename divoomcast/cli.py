@@ -152,7 +152,8 @@ def main(argv=None) -> int:
     v.add_argument("--fps", type=float, default=15)
     v.add_argument("--secs", type=float, default=0, help="0 = whole video")
     v.add_argument("--start", type=float, default=0.0)
-    v.add_argument("--guard", type=float, default=0.25)
+    v.add_argument("--guard", type=float, default=None,
+               help="seconds to land early; default adapts to measured overhead")
     v.add_argument("--target-load", type=float, default=0.90)
     v.add_argument("--level", type=int, default=9)
     v.add_argument("--source-height", type=int, default=144)

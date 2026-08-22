@@ -111,3 +111,14 @@ def test_square_resize_crops_to_square():
     img = Image.new("RGB", (400, 200), (10, 20, 30))
     out = codec.square_resize(img, 64)
     assert out.size == (64, 64)
+
+
+def test_framesource_does_not_shadow_thread_api():
+    """Regression: `self.start = <float>` once clobbered Thread.start()."""
+    import threading
+    from divoomcast.source import FrameSource
+    src = FrameSource("nonexistent://x", 32, 10.0, start=12.5)
+    assert callable(src.start), "FrameSource.start must remain Thread.start"
+    assert src.start_at == 12.5
+    for name in ("start", "run", "join", "is_alive"):
+        assert callable(getattr(src, name)), f"{name} shadowed"
