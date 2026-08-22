@@ -135,7 +135,7 @@ class Controller:
             if action == "_quit":
                 break
             if action == "stop":
-                self.request_stop()
+                self.request_stop()      # also handled inline by the HTTP layer
                 continue
             if action == "play":
                 # drain any queued plays so the newest request wins
@@ -199,10 +199,19 @@ def _handler(ctl: Controller):
             if self.path.startswith("/api/play"):
                 if not body.get("url"):
                     return self._json(400, {"error": "url required"})
+                # If something is already playing the main thread is blocked
+                # inside _play(), so interrupt it directly; the queued command
+                # is picked up as soon as it unwinds.
+                ctl.request_stop()
                 ctl.submit({"action": "play", **body})
                 return self._json(202, {"accepted": True})
             if self.path.startswith("/api/stop"):
-                ctl.submit({"action": "stop"})
+                # MUST NOT go through the command queue: during playback the
+                # main thread is inside _play() and never drains it, so a queued
+                # stop would not take effect until playback ended by itself.
+                # Player.stop() sets a threading.Event and is safe to call from
+                # this worker thread.
+                ctl.request_stop()
                 return self._json(202, {"accepted": True})
             self._json(404, {"error": "not found"})
     return H

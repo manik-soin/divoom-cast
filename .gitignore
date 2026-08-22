@@ -14,3 +14,4 @@ track.m4a
 .DS_Store
 .pytest_cache/
 *.egg-info/
+extension/_harness*.html
